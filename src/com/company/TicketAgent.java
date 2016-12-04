@@ -21,7 +21,7 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import jade.util.leap.List;
 
-public class Ticket extends Agent
+public class TicketAgent extends Agent
 {
     private String name;
     private int questionsCount;
