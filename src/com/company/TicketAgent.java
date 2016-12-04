@@ -539,11 +539,11 @@ public class TicketAgent extends Agent
                 fileWriter.write("-----------------------------------------------------");
                 fileWriter.write("\r\n");
 
-                fileWriter.write(name + " has finished, weight: " + Complexity());
+                fileWriter.write(name + " Закончили работу со средним значением: " + Complexity());
                 fileWriter.write("\r\n");
 
                 for (Question question : questions) {
-                    fileWriter.write("     " + question.Name() + " complexity " + question.Complexity() + " section " + question.Section());
+                    fileWriter.write("     " + question.Name() + " сложность " + question.Complexity() + " раздел " + question.Section());
                     fileWriter.write("\r\n");
                 }
 

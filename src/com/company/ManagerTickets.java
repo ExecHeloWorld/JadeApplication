@@ -28,7 +28,7 @@ public class ManagerTickets extends Agent {
 
                 String[] parametersFromString = s.split(";");
                 String nameOfAgent = parametersFromString[0];
-                String nameOfClass = "laba2." + parametersFromString[1];
+                String nameOfClass =  "com.company." + parametersFromString[1];
                 int arg2 = Integer.valueOf(parametersFromString[2]);
                 int arg3 = Integer.valueOf(parametersFromString[3]);
 
