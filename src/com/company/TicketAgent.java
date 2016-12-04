@@ -2,12 +2,7 @@ package com.company;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
 
-import javax.print.attribute.standard.PrinterInfo;
-
-import FIPA.stringsHelper;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -19,7 +14,6 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
-import jade.util.leap.List;
 
 public class TicketAgent extends Agent
 {
@@ -39,11 +33,19 @@ public class TicketAgent extends Agent
     private int delay=3;
 
     private static boolean isFileOpen = false;
-    private static int countOfWrittenCars = 0;
-    private static FileWriter fileWriter;
+    private static int countOfWrittenTickets = 0;
     private static boolean isAverageWeightPrinted = false;
 
-    private static Object lockFile = new Object();
+    private static FileWriter lockFile;
+
+    static {
+        try {
+            lockFile = new FileWriter("result.txt", false);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
     private static Object lockCounting1 = new Object();
     private static Object lockCounting2 = new Object();
 
@@ -517,49 +519,40 @@ public class TicketAgent extends Agent
 
     private void printInfo() {
         synchronized (lockFile) {
-            if (!isFileOpen)
-                try {
-                    fileWriter = new FileWriter("result.txt", false);
-                    isFileOpen = true;
-                } catch (IOException e) {
-                    // TODO Auto-generated catch block
-                    e.printStackTrace();
-                }
-
             try {
 
                 if (!isAverageWeightPrinted) {
                     int avg = sumOfComplexity/counter;
-                    fileWriter.write("Average weight: " + avg);
-                    fileWriter.write("\r\n");
+                    lockFile.write("Средняя сложность билетов: " + avg);
+                    lockFile.write("\r\n");
 
                     isAverageWeightPrinted = true;
                 }
 
-                fileWriter.write("-----------------------------------------------------");
-                fileWriter.write("\r\n");
+                lockFile.write("-----------------------------------------------------");
+                lockFile.write("\r\n");
 
-                fileWriter.write(name + " Закончили работу со средним значением: " + Complexity());
-                fileWriter.write("\r\n");
+                lockFile.write(name + " Суммарная сложность билета: " + Complexity());
+                lockFile.write("\r\n");
 
                 for (Question question : questions) {
-                    fileWriter.write("     " + question.Name() + " сложность " + question.Complexity() + " раздел " + question.Section());
-                    fileWriter.write("\r\n");
+                    lockFile.write("     " + question.Name() + " сложность " + question.Complexity() + " раздел " + question.Section());
+                    lockFile.write("\r\n");
                 }
 
-                fileWriter.write("-----------------------------------------------------");
+                lockFile.write("-----------------------------------------------------");
 
                 System.out.println(name + " written to the file");
 
-                countOfWrittenCars++;
+                countOfWrittenTickets++;
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
             }
 
-            if (countOfWrittenCars == counter) {
+            if (countOfWrittenTickets == counter) {
                 try {
-                    fileWriter.close();
+                    lockFile.close();
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
