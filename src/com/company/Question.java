@@ -1,41 +1,38 @@
 package com.company;
-import jade.core.Agent;
-import jade.core.behaviours.*;
-import jade.lang.acl.ACLMessage;
-import jade.lang.acl.MessageTemplate;
-import jade.domain.DFService;
-import jade.domain.FIPAException;
-import jade.domain.FIPAAgentManagement.DFAgentDescription;
-import jade.domain.FIPAAgentManagement.ServiceDescription;
+
 /**
- * Created by localadmin on 26.11.2016.
+ * Created by localadmin on 04.12.2016.
  */
 
-public class Question extends Agent {
-    @Override
-    protected void setup() {
-        System.out.print("Hi!");
+import java.util.Collections;
+import java.util.HashSet;
 
-        this.addBehaviour(new OfferRequestsServer());
-        this.addBehaviour(new GetQuestionsServer());
+public class Question
+{
+    private String name;
+    private int complexity;
+    private int section;
+
+    public Question(String name, int complexity, int section)
+    {
+        this.name = name;
+        this.complexity = complexity;
+        this.section=section;
+    }
+    public String Name()
+    {
+        return name;
     }
 
-    @Override
-    protected void takeDown() {
-
+    public int Complexity()
+    {
+        return complexity;
     }
 
-    private class OfferRequestsServer extends CyclicBehaviour {
-        @Override
-        public void action() {
-
-        }
+    public int Section()
+    {
+        return section;
     }
 
-    private class GetQuestionsServer extends CyclicBehaviour {
-        @Override
-        public void action() {
-
-        }
-    }
 }
+
