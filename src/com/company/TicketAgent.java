@@ -25,7 +25,7 @@ public class TicketAgent extends Agent
     private int id;
     static double[] razn;
     static int counter = 0;
-    static int sumOfComplexity = 0;
+    static int  sumOfComplexity = 0;
     static int n = 0;
 
     private int delta = 3;
@@ -132,14 +132,6 @@ public class TicketAgent extends Agent
 
     protected void takeDown()
     {
-        try
-        {
-            DFService.deregister(this);
-        }
-        catch (FIPAException fe)
-        {
-            fe.printStackTrace();
-        }
         System.out.println("Ticket-agent "+getAID().getName()+" terminating.");
     }
 
@@ -272,8 +264,6 @@ public class TicketAgent extends Agent
 
                 deregister();
 
-
-
                 try
                 {
                     DFAgentDescription[] result = DFService.search(myAgent, template);
@@ -299,8 +289,6 @@ public class TicketAgent extends Agent
             {
                 System.out.println(name + " ОПТИМАЛЕН");
                 deregister();
-
-
             }
         }
 
@@ -490,7 +478,7 @@ public class TicketAgent extends Agent
                         reply.setPerformative(ACLMessage.INFORM);
                         System.out.println("---------------------------------------------------------------");
                         System.out.println(questionName + " успешно добавлен в " + name);
-                        System.out.println("Откуда: " + msg.getSender().getName());
+                        System.out.println("Из: " + msg.getSender().getName());
                         System.out.println("Сложность вопроса: " + questionComplexity);
                         System.out.println("Из раздела: " + questionSection);
                         System.out.println("Текущая сложность билета: " + Complexity());
@@ -548,6 +536,8 @@ public class TicketAgent extends Agent
             } catch (IOException e) {
                 // TODO Auto-generated catch block
                 e.printStackTrace();
+            }finally {
+                this.doDelete();
             }
 
             if (countOfWrittenTickets == counter) {
@@ -566,30 +556,10 @@ public class TicketAgent extends Agent
         if ((isLessThanLimitCount(question)) && !(hasSimilarQuestion(question) ))
         {
             questions.add(question);
-			/*synchronized (razn)
-			{
-			razn[id]=Math.pow(Complexity()-sumOfComplexity/counter,2);
-			}*/
         }
         else
             throw new Exception("FUCK");
     }
-
-	/*private double sumOfRazn()
-	{
-		double sum = 0;
-		synchronized (razn)
-		{
-
-	for (double d: razn)
-	{
-		sum += d;
-	}
-		}
-	sum = sum/counter;
-	System.out.println(sum);
-	return sum;
-	}*/
 
     private boolean hasSimilarQuestion(Question candidateQuestion)
     {
@@ -622,6 +592,7 @@ public class TicketAgent extends Agent
         {
             complexity += question.Complexity();
         }
+
         return complexity;
     }
 

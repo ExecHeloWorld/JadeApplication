@@ -29,10 +29,8 @@ public class Question
         return complexity;
     }
 
-    public int Section()
-    {
+    public int Section() {
         return section;
     }
-
 }
 

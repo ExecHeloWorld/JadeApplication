@@ -32,7 +32,7 @@ public class QuestionAgent extends Agent
         this.section=(int) args[2];
         System.out.println("Начал работу агент " + name + " со сложностью " + complexity + " из раздела " + section);
 
-        addBehaviour(new TickerBehaviour(this, 4000)
+        addBehaviour(new TickerBehaviour(this, 3000 * (1 + (int)Math.random() * 3))
         {
 
             @Override
