@@ -252,10 +252,9 @@ public class TicketAgent extends Agent
             {
                 System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
             }
-            if ((Complexity() - (sumOfComplexity/counter)) > delta)
+            if (Math.abs(Complexity() - (sumOfComplexity / counter)) < delta)
             {
-                System.out.println(name + " - Превышена сложность ");
-
+                System.out.println(name + " - Недостаточно сложный");
                 DFAgentDescription template = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
                 sd.setType("loading");
@@ -280,9 +279,9 @@ public class TicketAgent extends Agent
                 }
             }
             else
-            if ((Complexity() - (sumOfComplexity/counter)) < -delta)
+            if (Math.abs(Complexity() - (sumOfComplexity/counter)) > delta)
             {
-                System.out.println(name + " - Недостаточно сложный");
+                System.out.println(name + " - Превышена сложность ");
                 register();
             }
             else
