@@ -1,8 +1,11 @@
 package com.company;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
+import java.io.Serializable;
+import java.lang.reflect.Array;
+import java.util.*;
 
+import com.sun.javafx.scene.layout.region.Margins;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -14,6 +17,8 @@ import jade.domain.FIPAAgentManagement.DFAgentDescription;
 import jade.domain.FIPAAgentManagement.ServiceDescription;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
+import jade.lang.acl.UnreadableException;
+import javafx.util.Pair;
 
 public class TicketAgent extends Agent
 {
@@ -26,7 +31,7 @@ public class TicketAgent extends Agent
     static double[] razn;
     static int counter = 0;
     static int  sumOfComplexity = 0;
-    static int n = 0;
+    //static int n = 0;
 
     private int delta = 3;
     private int eps = 20;
@@ -122,7 +127,7 @@ public class TicketAgent extends Agent
 
             try {
                 DFService.register(this, template);
-                isDeregister = true;
+                isDeregister = false;
             }
             catch (FIPAException fe) {
                 fe.printStackTrace();
@@ -134,10 +139,218 @@ public class TicketAgent extends Agent
     {
         System.out.println("Ticket-agent "+getAID().getName()+" terminating.");
     }
+    protected class RequestForExchanging extends TickerBehaviour
+    {
+
+        public RequestForExchanging(Agent a, long period)
+        {
+            super(a, period);
+        }
+
+        protected void onTick() {
+
+            if (delay == 0) {
+                System.out.println(name + " закончил работу");
+                //razn[id]=0;
+                printInfo();
+                this.stop();
+                return;
+            }
+            delay--;
+
+            System.out.println("---------------------------------------------------------------");
+            //System.out.println("counter = " + counter);
+            System.out.println("Средняя сложность: " + (sumOfComplexity/counter) + ", текущая сложность: " + Complexity() + "  текущее количество вопросов: " + questionsCount);
+            System.out.println("Вопросы в " + name);
+            for (Question question: questions)
+            {
+                System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
+            }
+
+            if (Complexity() - (sumOfComplexity/counter) < delta && Complexity() - (sumOfComplexity/counter) > -delta)
+            {
+                System.out.println(name + " ОПТИМАЛЕН");
+                deregister();
+            }
+
+            if (Complexity() - (sumOfComplexity/counter) > delta)
+            {
+                System.out.println(name + " - Превышена сложность ");
+                register();
+            }
+
+            if (Complexity() - (sumOfComplexity / counter) < -delta)
+            {
+                System.out.println(name + " - Недостаточно сложный");
+                DFAgentDescription template = new DFAgentDescription();
+                ServiceDescription sd = new ServiceDescription();
+                sd.setType("loading");
+                sd.setName("JADE-loading");
+                template.addServices(sd);
+
+                deregister();
+
+                try
+                {
+                    DFAgentDescription[] result = DFService.search(myAgent, template);
+                    ticketAgents = new AID[result.length];
+                    for (int i = 0; i < ticketAgents.length; i++)
+                    {
+                        ticketAgents[i] = result[i].getName();
+                    }
+
+                    myAgent.addBehaviour(new RequestForPlacing());
+                }
+                catch (FIPAException e)
+                {
+                    e.printStackTrace();
+                }
+            }
+        }
+
+    }
+
+    private class RequestForPlacing extends Behaviour
+    {
+        private int step = 0;
+        private MessageTemplate mt;
+        Pair<Question, Integer> QuestionForReplace = new Pair<>(null, 0);
+        @Override
+        public void action() {
+            switch (step) {
+                case 0:
+                    ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+                    request.setConversationId("exchange");
+
+                    StringBuilder sb = new StringBuilder();
+
+                    for (int i = 0; i < ticketAgents.length; ++i) {
+                        request.addReceiver(ticketAgents[i]);
+                    }
+
+                    /*int dif = Complexity() - sumOfComplexity/counter;
+
+                    ArrayList<String> questionsForExchange = new ArrayList<>();
+                    for (int i = 0; i < questions.size(); i++)
+                    {
+                        int weightCurrent = Complexity() - questions.get(i).Complexity();
+                        if (Math.abs(weightCurrent - sumOfComplexity/counter) < dif)
+                        {
+                            questionsForExchange.add(String.valueOf(questions.get(i).Complexity()));
+                        }
+                    }
+
+
+                    if (questions.size() > 0)
+                    {
+                        for (int i = 0; i < questions.size(); i++)
+                        {
+                            if (i == 0)
+                            {
+                                sb.append(questions.get(i).Name()).append(",").append(questions.get(i).Complexity()).append(",").append(questions.get(i).Section());
+                            }
+                            else
+                            {
+                                sb.append(questions.get(i).Name()).append(",").append(";").append(questions.get(i).Complexity()).append(",").append(questions.get(i).Section());
+                            }
+                        }*/
+
+                    try {
+                        request.setContentObject((Serializable) questions);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                    request.setReplyWith("request" + System.currentTimeMillis());
+                    myAgent.send(request);
+                    System.out.println(myAgent.getName() + "ЗАБАБАХАЛ ЗАПРОС БИЧАМ");
+
+                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                            MessageTemplate.MatchInReplyTo(request.getReplyWith()));
+
+                    step = 1;
+
+                    break;
+                case 1:
+                    ACLMessage msg = myAgent.receive(mt);
+
+                    if (msg != null) {
+                        try {
+                            System.out.println(msg.getContentObject());
+                            QuestionForReplace = (Pair<Question, Integer>) msg.getContentObject();
+                        } catch (UnreadableException e) {
+                            e.printStackTrace();
+                        }
+
+                        ACLMessage reply = msg.createReply();
+                        reply.setPerformative(ACLMessage.INFORM);
+                        reply.setReplyWith("reply" + System.currentTimeMillis());
+                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                                MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
+                        myAgent.send(reply);
+
+                       /* if (QuestionForReplace.getKey() != null) {
+                            questions.remove(QuestionForReplace.getValue());
+                            questions.add(QuestionForReplace.getKey());
+                        }*/
+
+                        /*int selectedWeight = Integer.valueOf(msg.getContent());
+
+                        for (Question question : questions) {
+                            if (selectedWeight == question.Complexity()) {
+                                deletedQuestion = question;
+                                break;
+                            }
+                        }
+
+                        sb = new StringBuilder();
+                        sb.append(deletedQuestion.Name()).append(";").append(deletedQuestion.Complexity()).append(";").append(deletedQuestion.Section());
+
+                        ACLMessage reply = msg.createReply();
+                        reply.setContent(new String(sb));
+                        reply.setPerformative(ACLMessage.INFORM);
+                        reply.setReplyWith("reply" + System.currentTimeMillis());
+                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                                MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
+                        myAgent.send(reply);*/
+                        step = 2;
+                    } else {
+                        block();
+                    }
+                    break;
+                case 2:
+                    ACLMessage answer = myAgent.receive(mt);
+                    if (answer != null) {
+                        System.out.println(answer.getPerformative() + "        <-------------------");
+                        if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null) {
+                                questions.remove(QuestionForReplace.getValue());
+                                questions.add(QuestionForReplace.getKey());
+                                //questions.remove(deletedQuestion);
+                                //isOk = true;
+                                System.out.println("ОБМЕН ПРОИЗОШЕЛ УСПЕШНО");
+
+                        } else {
+                            System.out.println("Не удалось произвести ОБМЕН");
+                            //n++;
+                        }
+                        step = 3;
+                    } else {
+                        block();
+                    }
+                    break;
+            }
+        }
+
+        @Override
+        public boolean done()
+        {
+            return (step == 3);
+        }
+
+    }
 
     private class OfferExchange extends CyclicBehaviour
     {
-
         @Override
         public void action()
         {
@@ -145,9 +358,40 @@ public class TicketAgent extends Agent
             ACLMessage msg = myAgent.receive(mt);
             if (msg != null)
             {
-                String[] listOfComplexitis = msg.getContent().split(";");
+                ArrayList<Question> listQuestions = null;
+                try {
+                    listQuestions = (ArrayList<Question>) msg.getContentObject();
+                }catch(Exception e){
 
-                int neededComplexity = sumOfComplexity/counter - Complexity();
+                }
+                System.out.println(listQuestions);
+
+                ArrayList<Question> result = Question.GetSolutionPermutation(listQuestions, questions);
+                ACLMessage reply = msg.createReply();
+                if(!result.get(0).equals(listQuestions.get(0)))
+                    try {
+                        reply.setContentObject((Serializable) new Pair<Question, Integer>(result.get(0),0));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+                else
+                if(!result.get(1).equals(listQuestions.get(1)))
+                    try {
+                        reply.setContentObject((Serializable) new Pair<Question, Integer>(result.get(1),1));
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                ArrayList<Question> newListQuestions = new ArrayList<>();
+                newListQuestions.add(result.get(2));
+                newListQuestions.add(result.get(3));
+
+                questions = newListQuestions;
+                System.out.println(questions);
+
+                reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
+                myAgent.send(reply);
+                /*int neededComplexity = sumOfComplexity/counter - Complexity();
 
                 String bestComplexity = null;
                 int bestDif = 99999;
@@ -166,7 +410,7 @@ public class TicketAgent extends Agent
                 ACLMessage reply = msg.createReply();
                 reply.setContent(bestComplexity);
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                myAgent.send(reply);
+                myAgent.send(reply);*/
             }
             else
             {
@@ -187,11 +431,11 @@ public class TicketAgent extends Agent
             ACLMessage msg = myAgent.receive(mt);
             if (msg != null)
             {
-                String[] questionData = msg.getContent().split(";");
-                String questionName = questionData[0];
-                int questionComplexity = Integer.parseInt(questionData[1]);
-                int section = Integer.parseInt(questionData[2]);
-                Question candidateQuestion = new Question(questionName, questionComplexity, section);
+                //String[] questionData = msg.getContent().split(";");
+                //String questionName = questionData[0];
+                //int questionComplexity = Integer.parseInt(questionData[1]);
+                //int section = Integer.parseInt(questionData[2]);
+                //Question candidateQuestion = new Question(questionName, questionComplexity, section);
 
                 ACLMessage reply = msg.createReply();
                 try
@@ -225,194 +469,7 @@ public class TicketAgent extends Agent
 
     }
 
-    protected class RequestForExchanging extends TickerBehaviour
-    {
 
-        public RequestForExchanging(Agent a, long period)
-        {
-            super(a, period);
-        }
-
-        protected void onTick() {
-
-            if (delay == 0) {
-                System.out.println(name + " закончил работу");
-                //razn[id]=0;
-                printInfo();
-                this.stop();
-                return;
-            }
-            delay--;
-
-            System.out.println("---------------------------------------------------------------");
-            //System.out.println("counter = " + counter);
-            System.out.println("Средняя сложность: " + (sumOfComplexity/counter) + ", текущая сложность: " + Complexity() + "  текущее количество вопросов: " + questionsCount);
-            System.out.println("Вопросы в " + name);
-            for (Question question: questions)
-            {
-                System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
-            }
-            if (Math.abs(Complexity() - (sumOfComplexity / counter)) < delta)
-            {
-                System.out.println(name + " - Недостаточно сложный");
-                DFAgentDescription template = new DFAgentDescription();
-                ServiceDescription sd = new ServiceDescription();
-                sd.setType("loading");
-                sd.setName("JADE-loading");
-                template.addServices(sd);
-
-                deregister();
-
-                try
-                {
-                    DFAgentDescription[] result = DFService.search(myAgent, template);
-                    ticketAgents = new AID[result.length];
-                    for (int i = 0; i < ticketAgents.length; i++)
-                    {
-                        ticketAgents[i] = result[i].getName();
-                    }
-                    myAgent.addBehaviour(new RequestForPlacing());
-                }
-                catch (FIPAException e)
-                {
-                    e.printStackTrace();
-                }
-            }
-            else
-            if (Math.abs(Complexity() - (sumOfComplexity/counter)) > delta)
-            {
-                System.out.println(name + " - Превышена сложность ");
-                register();
-            }
-            else
-            {
-                System.out.println(name + " ОПТИМАЛЕН");
-                deregister();
-            }
-        }
-
-    }
-
-    private class RequestForPlacing extends Behaviour
-    {
-        private int step = 0;
-        private MessageTemplate mt;
-        private Question deletedQuestion;
-        @Override
-        public void action()
-        {
-            switch (step)
-            {
-                case 0:
-                    ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-                    request.setConversationId("exchange");
-
-                    for (int i = 0; i < ticketAgents.length; ++i)
-                    {
-                        request.addReceiver(ticketAgents[i]);
-                    }
-
-                    int dif = Complexity() - sumOfComplexity/counter;
-
-                    ArrayList<String> questionsForExchange = new ArrayList<>();
-                    for (int i = 0; i < questions.size(); i++)
-                    {
-                        int weightCurrent = Complexity() - questions.get(i).Complexity();
-                        if (Math.abs(weightCurrent - sumOfComplexity/counter) < dif)
-                        {
-                            questionsForExchange.add(String.valueOf(questions.get(i).Complexity()));
-                        }
-                    }
-
-                    StringBuilder sb = new StringBuilder();
-
-                    if (questionsForExchange.size() > 0)
-                    {
-                        for (int i = 0; i < questionsForExchange.size(); i++)
-                        {
-                            if (i == 0)
-                            {
-                                sb.append(questionsForExchange.get(i));
-                            }
-                            else
-                            {
-                                sb.append(";").append(questionsForExchange.get(i));
-                            }
-                        }
-
-                        request.setContent(new String(sb));
-                        request.setReplyWith("request"+System.currentTimeMillis());
-                        myAgent.send(request);
-
-                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                                MessageTemplate.MatchInReplyTo(request.getReplyWith()));
-
-                        step = 1;
-                    }
-                    break;
-                case 1:
-                    ACLMessage msg = myAgent.receive(mt);
-                    if (msg != null) {
-                        int selectedWeight = Integer.valueOf(msg.getContent());
-
-                        for (Question question : questions)
-                        {
-                            if (selectedWeight == question.Complexity())
-                            {
-                                deletedQuestion = question;
-                                break;
-                            }
-                        }
-
-                        sb = new StringBuilder();
-                        sb.append(deletedQuestion.Name()).append(";").append(deletedQuestion.Complexity()).append(";").append(deletedQuestion.Section());
-
-                        ACLMessage reply = msg.createReply();
-                        reply.setContent(new String(sb));
-                        reply.setPerformative(ACLMessage.INFORM);
-                        reply.setReplyWith("reply"+System.currentTimeMillis());
-                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                                MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
-                        myAgent.send(reply);
-                        step = 2;
-                    }
-                    else
-                    {
-                        block();
-                    }
-                    break;
-                case 2:
-                    ACLMessage answer = myAgent.receive(mt);
-                    if (answer != null)
-                    {
-                        if (answer.getPerformative() == ACLMessage.CONFIRM)
-                        {
-                            questions.remove(deletedQuestion);
-                            //isOk = true;
-                            System.out.println("ОБМЕН ПРОИЗОШЕЛ УСПЕШНО");
-                        }
-                        else
-                        {
-                            System.out.println("Не удалось произвести ОБМЕН");
-                            n++;
-                        }
-                        step = 3;
-                    }
-                    else
-                    {
-                        block();
-                    }
-                    break;
-            }
-        }
-
-        @Override
-        public boolean done()
-        {
-            return (step == 3);
-        }
-
-    }
 
     private class OfferRequestsServer extends CyclicBehaviour {
 

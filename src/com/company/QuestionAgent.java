@@ -29,10 +29,10 @@ public class QuestionAgent extends Agent
         Object[] args = getArguments();
         name = (String) args[0];
         complexity = (int) args[1];
-        this.section=(int) args[2];
+        section=(int) args[2];
         System.out.println("Начал работу агент " + name + " со сложностью " + complexity + " из раздела " + section);
 
-        addBehaviour(new TickerBehaviour(this, 3000 * (1 + (int)Math.random() * 3))
+        addBehaviour(new TickerBehaviour(this, 1000 * (1 + (int)Math.random() * 3))
         {
 
             @Override
@@ -41,11 +41,12 @@ public class QuestionAgent extends Agent
                 if (Placed || stopDelay==0)
                     this.stop();
                 --stopDelay;
-                System.out.println(name + " пытается найти билет");
+                //System.out.println(name + " пытается найти билет");
 
                 DFAgentDescription template = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
                 sd.setType("Loading");
+                //sd.setName("JADE-loading");//
                 template.addServices(sd);
 
                 try
