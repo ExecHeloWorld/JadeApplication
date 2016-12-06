@@ -214,7 +214,7 @@ public class TicketAgent extends Agent
     {
         private int step = 0;
         private MessageTemplate mt;
-        Pair<Question, Integer> QuestionForReplace = new Pair<>(null, 0);
+        Pair<Question, Question> QuestionForReplace = new Pair<>(null, null);
         @Override
         public void action() {
             switch (step) {
@@ -277,13 +277,19 @@ public class TicketAgent extends Agent
                     if (msg != null) {
                         try {
                             System.out.println(msg.getContentObject());
-                            QuestionForReplace = (Pair<Question, Integer>) msg.getContentObject();
+                            QuestionForReplace = (Pair<Question, Question>) msg.getContentObject();
                         } catch (UnreadableException e) {
                             e.printStackTrace();
                         }
 
                         ACLMessage reply = msg.createReply();
                         reply.setPerformative(ACLMessage.INFORM);
+                        try {
+                            reply.setContentObject((Serializable) QuestionForReplace);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
                         reply.setReplyWith("reply" + System.currentTimeMillis());
                         mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
                                 MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
@@ -321,9 +327,10 @@ public class TicketAgent extends Agent
                 case 2:
                     ACLMessage answer = myAgent.receive(mt);
                     if (answer != null) {
-                        System.out.println(answer.getPerformative() + "        <-------------------");
-                        if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null) {
-                                questions.remove(QuestionForReplace.getValue());
+                        System.out.println(answer.getPerformative() + "        <-------------------" + ACLMessage.CONFIRM + " n ");
+                        if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null && questions.remove(QuestionForReplace.getValue()))
+                        {
+
                                 questions.add(QuestionForReplace.getKey());
                                 //questions.remove(deletedQuestion);
                                 //isOk = true;
@@ -368,20 +375,19 @@ public class TicketAgent extends Agent
 
                 ArrayList<Question> result = Question.GetSolutionPermutation(listQuestions, questions);
                 ACLMessage reply = msg.createReply();
+
+                Question tmp = null;
                 if(!result.get(0).equals(listQuestions.get(0)))
-                    try {
-                        reply.setContentObject((Serializable) new Pair<Question, Integer>(result.get(0),0));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    tmp = result.get(0);
                 else
                 if(!result.get(1).equals(listQuestions.get(1)))
-                    try {
-                        reply.setContentObject((Serializable) new Pair<Question, Integer>(result.get(1),1));
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
+                    tmp = result.get(1);
 
+                try {
+                    reply.setContentObject((Serializable) new Pair<Question, Question>(tmp,questions.get(questions.indexOf(tmp))));
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
                 ArrayList<Question> newListQuestions = new ArrayList<>();
                 newListQuestions.add(result.get(2));
                 newListQuestions.add(result.get(3));
@@ -435,23 +441,32 @@ public class TicketAgent extends Agent
                 //String questionName = questionData[0];
                 //int questionComplexity = Integer.parseInt(questionData[1]);
                 //int section = Integer.parseInt(questionData[2]);
-                //Question candidateQuestion = new Question(questionName, questionComplexity, section);
+                Question candidateQuestion = null;
+                try {
+                    candidateQuestion = ((Pair<Question,Question>)msg.getContentObject()).getKey();
+                } catch (UnreadableException e) {
+                    System.out.println("ОТвалилсь на фазе чего-то кароче иди на хуй");
+                    e.printStackTrace();
+                }
 
                 ACLMessage reply = msg.createReply();
                 try
                 {
-                    addQuestion(candidateQuestion);
-                    //sumOfRazn();
-                    reply.setPerformative(ACLMessage.CONFIRM);
-                    System.out.println("---------------------------------------------------------------");
-                    System.out.println(questionName + " успешно добавлен к " + name);
-                    System.out.println("От кого: " + msg.getSender().getName());
-                    System.out.println("Сложность вопроса: " + questionComplexity);
-                    System.out.println("Текущая сложность билета: " + Complexity());
-                    System.out.println("Текущая кол-во вопросов: " + currentCount());
-                    //System.out.println("Предельная сложность билета: " + limitComplexity);
-                    System.out.println("---------------------------------------------------------------");
-
+                    if(questions.remove(((Pair<Question,Question>)msg.getContentObject()).getKey())) {
+                        questions.add(((Pair<Question, Question>) msg.getContentObject()).getValue());
+                        //addQuestion(candidateQuestion);
+                        //sumOfRazn();
+                        reply.setPerformative(ACLMessage.CONFIRM);
+                        System.out.println("---------------------------------------------------------------");
+                        System.out.println(candidateQuestion.Name() + " успешно добавлен к " + name);
+                        System.out.println("От кого: " + msg.getSender().getName());
+                        System.out.println("Сложность вопроса: " + candidateQuestion.Complexity());
+                        System.out.println("Текущая сложность билета: " + Complexity());
+                        System.out.println("Текущая кол-во вопросов: " + currentCount());
+                        //System.out.println("Предельная сложность билета: " + limitComplexity);
+                        System.out.println("---------------------------------------------------------------");
+                    }else
+                        reply.setPerformative(ACLMessage.FAILURE);
                 }
                 catch (Exception e)
                 {
