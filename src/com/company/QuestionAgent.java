@@ -45,8 +45,8 @@ public class QuestionAgent extends Agent
 
                 DFAgentDescription template = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
-                sd.setType("Loading");
-                //sd.setName("JADE-loading");//
+                sd.setType("Create");
+                sd.setName("JADE-Create");//
                 template.addServices(sd);
 
                 try

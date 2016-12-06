@@ -74,8 +74,8 @@ public class TicketAgent extends Agent
         DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("loading");
-        sd.setName("JADE-loading");
+        sd.setType("create");
+        sd.setName("JADE-create");
         dfd.addServices(sd);
         try
         {
@@ -90,7 +90,7 @@ public class TicketAgent extends Agent
 
         addBehaviour(new PurchaseOrdersServer());
 
-        addBehaviour(new RequestForExchanging(this, 8000));
+        addBehaviour(new RequestForExchanging(this, 10000));
 
         addBehaviour(new OfferExchange());
 
@@ -102,8 +102,8 @@ public class TicketAgent extends Agent
             DFAgentDescription template = new DFAgentDescription();
             ServiceDescription sd = new ServiceDescription();
             //sd.setType("deleting");
-            sd.setType("loading");
-            sd.setName("JADE-loading");
+            sd.setType("create");
+            sd.setName("JADE-create");
             template.addServices(sd);
 
             try {
@@ -151,7 +151,6 @@ public class TicketAgent extends Agent
 
             if (delay == 0) {
                 System.out.println(name + " закончил работу");
-                //razn[id]=0;
                 printInfo();
                 this.stop();
                 return;
@@ -167,16 +166,12 @@ public class TicketAgent extends Agent
                 System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
             }
 
-            if (Complexity() - (sumOfComplexity/counter) < delta && Complexity() - (sumOfComplexity/counter) > -delta)
-            {
-                System.out.println(name + " ОПТИМАЛЕН");
-                deregister();
-            }
 
             if (Complexity() - (sumOfComplexity/counter) > delta)
             {
                 System.out.println(name + " - Превышена сложность ");
                 register();
+                return;
             }
 
             if (Complexity() - (sumOfComplexity / counter) < -delta)
@@ -193,10 +188,12 @@ public class TicketAgent extends Agent
                 try
                 {
                     DFAgentDescription[] result = DFService.search(myAgent, template);
+
                     ticketAgents = new AID[result.length];
                     for (int i = 0; i < ticketAgents.length; i++)
                     {
                         ticketAgents[i] = result[i].getName();
+                        System.out.println(ticketAgents[i].toString() + " name");
                     }
 
                     myAgent.addBehaviour(new RequestForPlacing());
@@ -205,6 +202,16 @@ public class TicketAgent extends Agent
                 {
                     e.printStackTrace();
                 }
+
+                return;
+            }
+            else
+            {
+                System.out.println(name + " ОПТИМАЛЕН");
+                deregister();
+                //myAgent.doDelete();
+                this.stop();
+                return;
             }
         }
 
@@ -227,33 +234,6 @@ public class TicketAgent extends Agent
                     for (int i = 0; i < ticketAgents.length; ++i) {
                         request.addReceiver(ticketAgents[i]);
                     }
-
-                    /*int dif = Complexity() - sumOfComplexity/counter;
-
-                    ArrayList<String> questionsForExchange = new ArrayList<>();
-                    for (int i = 0; i < questions.size(); i++)
-                    {
-                        int weightCurrent = Complexity() - questions.get(i).Complexity();
-                        if (Math.abs(weightCurrent - sumOfComplexity/counter) < dif)
-                        {
-                            questionsForExchange.add(String.valueOf(questions.get(i).Complexity()));
-                        }
-                    }
-
-
-                    if (questions.size() > 0)
-                    {
-                        for (int i = 0; i < questions.size(); i++)
-                        {
-                            if (i == 0)
-                            {
-                                sb.append(questions.get(i).Name()).append(",").append(questions.get(i).Complexity()).append(",").append(questions.get(i).Section());
-                            }
-                            else
-                            {
-                                sb.append(questions.get(i).Name()).append(",").append(";").append(questions.get(i).Complexity()).append(",").append(questions.get(i).Section());
-                            }
-                        }*/
 
                     try {
                         request.setContentObject((Serializable) questions);
@@ -382,6 +362,7 @@ public class TicketAgent extends Agent
                 else
                 if(!result.get(1).equals(listQuestions.get(1)))
                     tmp = result.get(1);
+                System.out.println(tmp.Name()+"                EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
 
                 try {
                     reply.setContentObject((Serializable) new Pair<Question, Question>(tmp,questions.get(questions.indexOf(tmp))));
