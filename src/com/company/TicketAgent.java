@@ -333,7 +333,7 @@ public class TicketAgent extends Agent
                 }
 
                 try {
-                    reply.setContentObject((Serializable) new Pair<Question, Question>(tmp2,tmp));
+                    reply.setContentObject((Serializable) new Pair<Question, Question>(tmp,tmp2));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
