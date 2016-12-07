@@ -35,7 +35,7 @@ public class TicketAgent extends Agent
 
     private int delta = 3;
     private int eps = 20;
-    private int delay=3;
+    private int delay=5;
 
     private static boolean isFileOpen = false;
     private static int countOfWrittenTickets = 0;
@@ -61,7 +61,6 @@ public class TicketAgent extends Agent
     private static String ComplexityType ="MoreComplexity";
     private static String StartToExchangeType = "StartToExchange";
 
-    Pair<Question, Question> QuestionForReplace = new Pair<>(null, null);
 
     protected void setup() {
         Object[] args = getArguments();
@@ -143,7 +142,7 @@ public class TicketAgent extends Agent
                 this.stop();
                 return;
             }
-            //delay--;
+            delay--;
             synchronized (System.out) {
                 System.out.println("---------------------------------------------------------------");
 
@@ -203,86 +202,94 @@ public class TicketAgent extends Agent
 
     private class RequestForPlacing extends Behaviour
     {
+        Pair<Question, Question> QuestionForReplace = new Pair<>(null, null);
         private int step = 0;
         private MessageTemplate mt;
         @Override
         public void action() {
-            switch (step) {
-                case 0:
-                    if(ticketAgents.length > 0) {
-                        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-                        request.setConversationId("exchange");
+            synchronized (QuestionForReplace) {
+                switch (step) {
+                    case 0:
+                        if (ticketAgents.length > 0) {
+                            ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+                            request.setConversationId("exchange");
 
-                        StringBuilder sb = new StringBuilder();
+                            StringBuilder sb = new StringBuilder();
 
-                        for (int i = 0; i < ticketAgents.length; ++i) {
-                            request.addReceiver(ticketAgents[i]);
+                            for (int i = 0; i < ticketAgents.length; ++i) {
+                                request.addReceiver(ticketAgents[i]);
+                            }
+
+                            try {
+                                request.setContentObject((Serializable) questions);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            request.setReplyWith("request" + System.currentTimeMillis());
+                            myAgent.send(request);
+
+                            mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                                    MessageTemplate.MatchInReplyTo(request.getReplyWith()));
+
+                            step = 1;
                         }
+                        break;
+                    case 1:
+                        ACLMessage msg = myAgent.receive(mt);
 
-                        try {
-                            request.setContentObject((Serializable) questions);
-                        } catch (IOException e) {
-                            e.printStackTrace();
+                        if (msg != null) {
+                            try {
+                                System.out.println(msg.getContentObject());
+                                QuestionForReplace = (Pair<Question, Question>) msg.getContentObject();
+                            } catch (UnreadableException e) {
+                                e.printStackTrace();
+                            }
+
+                            System.out.println("*******************");
+                            System.out.println("Старый список вопросов в кортеже " + myAgent.getLocalName());
+                            System.out.println("------> " + ((Question)QuestionForReplace.getKey()).Name().toString());
+                            System.out.println("------> " + ((Question)QuestionForReplace.getValue()).Name());
+                            System.out.println("*******************");
+
+                            ACLMessage reply = msg.createReply();
+                            reply.setPerformative(ACLMessage.INFORM);
+                            try {
+                                reply.setContentObject((Serializable) QuestionForReplace);
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+
+                            reply.setReplyWith("reply" + System.currentTimeMillis());
+                            mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                                    MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
+                            myAgent.send(reply);
+                            step = 2;
+                        } else {
+                            block();
                         }
-
-                        request.setReplyWith("request" + System.currentTimeMillis());
-                        myAgent.send(request);
-
-                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                                MessageTemplate.MatchInReplyTo(request.getReplyWith()));
-
-                        step = 1;
-                    }
-                    break;
-                case 1:
-                    ACLMessage msg = myAgent.receive(mt);
-
-                    if (msg != null) {
-                        try {
-                            System.out.println(msg.getContentObject());
-                            QuestionForReplace = (Pair<Question, Question>) msg.getContentObject();
-                        } catch (UnreadableException e) {
-                            e.printStackTrace();
-                        }
-
-                        ACLMessage reply = msg.createReply();
-                        reply.setPerformative(ACLMessage.INFORM);
-                        try {
-                            reply.setContentObject((Serializable) QuestionForReplace);
-                        } catch (IOException e) {
-                            e.printStackTrace();
-                        }
-
-                        reply.setReplyWith("reply" + System.currentTimeMillis());
-                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                                MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
-                        myAgent.send(reply);
-                        step = 2;
-                    } else {
-                        block();
-                    }
-                    break;
-                case 2:
-                    ACLMessage answer = myAgent.receive(mt);
-                    if (answer != null) {
-                        System.out.println(answer.getPerformative() + "        <-------------------" + ACLMessage.CONFIRM + " n ");
-                        if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null && questions.remove(QuestionForReplace.getValue()))
-                        {
+                        break;
+                    case 2:
+                        ACLMessage answer = myAgent.receive(mt);
+                        if (answer != null) {
+                            System.out.println(answer.getPerformative() + "        <-------------------" + ACLMessage.CONFIRM + " n ");
+                            if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null && questions.remove(QuestionForReplace.getValue())) {
 
                                 questions.add(QuestionForReplace.getKey());
                                 //questions.remove(deletedQuestion);
                                 //isOk = true;
                                 System.out.println("ОБМЕН ПРОИЗОШЕЛ УСПЕШНО");
 
+                            } else {
+                                System.out.println("Не удалось произвести ОБМЕН");
+                                //n++;
+                            }
+                            step = 3;
                         } else {
-                            System.out.println("Не удалось произвести ОБМЕН");
-                            //n++;
+                            block();
                         }
-                        step = 3;
-                    } else {
-                        block();
-                    }
-                    break;
+                        break;
+                }
             }
         }
 
@@ -309,31 +316,48 @@ public class TicketAgent extends Agent
                 }catch(Exception e){
 
                 }
-                System.out.println(listQuestions);
+                //System.out.println(listQuestions);
 
                 ArrayList<Question> result = Question.GetSolutionPermutation(listQuestions, questions);
                 ACLMessage reply = msg.createReply();
 
-                Question tmp = null;
-                if(!result.get(0).equals(listQuestions.get(0)))
+                Question tmp = null, tmp2 = null;
+
+                if(!result.get(0).equals(listQuestions.get(0))) {
                     tmp = result.get(0);
-                else
-                if(!result.get(1).equals(listQuestions.get(1)))
+                    tmp2 = listQuestions.get(0);
+                }else
+                if(!result.get(1).equals(listQuestions.get(1))) {
                     tmp = result.get(1);
-                System.out.println(tmp.Name()+"                EEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE");
+                    tmp2 = listQuestions.get(1);
+                }
 
                 try {
-                    reply.setContentObject((Serializable) new Pair<Question, Question>(tmp,questions.get(questions.indexOf(tmp))));
+                    reply.setContentObject((Serializable) new Pair<Question, Question>(tmp2,tmp));
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
-                ArrayList<Question> newListQuestions = new ArrayList<>();
-                newListQuestions.add(result.get(2));
-                newListQuestions.add(result.get(3));
 
-                questions = newListQuestions;
-                System.out.println(questions);
+                synchronized (System.out) {
+                    System.out.println("*******************");
+                    System.out.println("Старый список вопросов у " + myAgent.getLocalName());
+                    for (int i = 0; i < 2; i++) {
+                        System.out.println("------> " + questions.get(i).Name());
+                    }
+                    System.out.println("*******************");
 
+                    ArrayList<Question> newListQuestions = new ArrayList<>();
+                    newListQuestions.add(result.get(2));
+                    newListQuestions.add(result.get(3));
+
+                    questions = newListQuestions;
+                    System.out.println("*******************");
+                    System.out.println("Новый список вопросов у " + myAgent.getLocalName());
+                    for (int i = 0; i < 2; i++) {
+                        System.out.println("------> " + questions.get(i).Name());
+                    }
+                    System.out.println("*******************");
+                }
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 myAgent.send(reply);
 
