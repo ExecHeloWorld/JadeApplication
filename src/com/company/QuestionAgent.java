@@ -45,14 +45,14 @@ public class QuestionAgent extends Agent
 
                 DFAgentDescription template = new DFAgentDescription();
                 ServiceDescription sd = new ServiceDescription();
-                sd.setType("Create");
-                sd.setName("JADE-Create");//
+                sd.setType("GetQuestions");
                 template.addServices(sd);
 
                 try
                 {
                     DFAgentDescription[] result = DFService.search(myAgent, template);
                     ticketAgents = new AID[result.length];
+
                     for (int i = 0; i < ticketAgents.length; i++)
                     {
                         ticketAgents[i] = result[i].getName();

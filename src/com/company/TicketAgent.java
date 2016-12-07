@@ -26,7 +26,7 @@ public class TicketAgent extends Agent
     private int questionsCount;
     private int currentCount;
     private ArrayList<Question> questions = new ArrayList<>();
-    private boolean isDeregister = false;
+    private boolean isDeregister = true;
     private int id;
     static double[] razn;
     static int counter = 0;
@@ -75,26 +75,10 @@ public class TicketAgent extends Agent
 
         System.out.println("Начал работу агент " + name + ", необходимое количество вопросов в билете - " + questionsCount);
 
-        DFAgentDescription dfd = new DFAgentDescription();
-        dfd.setName(getAID());
-        ServiceDescription sd = new ServiceDescription();
-        sd.setType("GetQuestions");
-        sd.setName(getLocalName());
-        dfd.addServices(sd);
-        try
-        {
-            DFService.register(this, dfd);
-        }
-        catch (FIPAException fe)
-        {
-            fe.printStackTrace();
-        }
-
+        register("GetQuestions");
         addBehaviour(new OfferRequestsServer());
 
         addBehaviour(new PurchaseOrdersServer());
-
-        addBehaviour(new RequestForExchanging(this, 10000));
 
         addBehaviour(new OfferExchange());
 
@@ -103,15 +87,17 @@ public class TicketAgent extends Agent
 
     private void deregister() {
         if (!isDeregister) {
-
             try {
                 DFService.deregister(this);
                 isDeregister = true;
             }
             catch (FIPAException fe) {
                 fe.printStackTrace();
+            }finally {
+                System.out.println("Получилось успешно разрегистрировать агента ->  " + this.getLocalName());
             }
-        }
+        }else
+            System.out.println("Не могу разрегистрировать агента ->  " + this.getLocalName());
     }
 
     private void register(String TypeName) {
@@ -130,8 +116,11 @@ public class TicketAgent extends Agent
             }
             catch (FIPAException fe) {
                 fe.printStackTrace();
+            }finally {
+                System.out.println("Получилось успешно зарегистрировать агента ->  " + this.getLocalName());
             }
-        }
+        }else
+            System.out.println("Не могу зарегистрирвоать агента ->  " + this.getLocalName());
     }
 
     protected void takeDown()
@@ -154,64 +143,59 @@ public class TicketAgent extends Agent
                 this.stop();
                 return;
             }
-            delay--;
+            //delay--;
+            synchronized (System.out) {
+                System.out.println("---------------------------------------------------------------");
 
-            System.out.println("---------------------------------------------------------------");
-            //System.out.println("counter = " + counter);
-            System.out.println("Средняя сложность: " + (sumOfComplexity/counter) + ", текущая сложность: " + Complexity() + "  текущее количество вопросов: " + questionsCount);
-            System.out.println("Вопросы в " + name);
-            for (Question question: questions)
-            {
-                System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
-            }
+                //System.out.println("counter = " + counter);
+                System.out.println("Средняя сложность: " + (sumOfComplexity / counter) + ", текущая сложность: " + Complexity() + "  текущее количество вопросов: " + questionsCount);
+                System.out.println("Вопросы в " + name);
+                for (Question question : questions) {
+                    System.out.println("     " + question.Name() + " из раздела " + question.Section() + " со сложностью " + question.Complexity());
+                }
 
 
-            if (Complexity() - (sumOfComplexity/counter) > delta)
-            {
-                System.out.println(name + " - Превышена сложность ");
-                register(ComplexityType);
-                return;
-            }
+                if (Complexity() - (sumOfComplexity / counter) > delta) {
+                    System.out.println(name + " - Превышена сложность ");
+                    deregister();
+                    register(ComplexityType);
+                    return;
+                }
 
-            if (Complexity() - (sumOfComplexity / counter) < -delta)
-            {
-                deregister();
-                System.out.println(name + " - Недостаточно сложный");
-                DFAgentDescription template = new DFAgentDescription();
-                template.setName(getAID());
-                ServiceDescription sd = new ServiceDescription();
+                if (Complexity() - (sumOfComplexity / counter) < -delta) {
+                    deregister();
+                    System.out.println(name + " - Недостаточно сложный");
 
-                sd.setType(ComplexityType);
-                sd.setName(getLocalName());
-                template.addServices(sd);
+                    DFAgentDescription template = new DFAgentDescription();
+                    ServiceDescription sd = new ServiceDescription();
+                    sd.setType(ComplexityType);
+                    template.addServices(sd);
 
-                try
-                {
-                    DFAgentDescription[] result = DFService.search(myAgent, template);
+                    try {
+                        DFAgentDescription[] result = DFService.search(myAgent, template);
+                        System.out.println("****");
+                        System.out.println(result.length);
+                        System.out.println("****");
 
-                    ticketAgents = new AID[result.length];
-                    for (int i = 0; i < ticketAgents.length; i++)
-                    {
-                        ticketAgents[i] = result[i].getName();
-                        System.out.println(ticketAgents[i].toString() + " name");
+                        ticketAgents = new AID[result.length];
+                        for (int i = 0; i < ticketAgents.length; i++) {
+                            ticketAgents[i] = result[i].getName();
+                            System.out.println(ticketAgents[i].toString() + " name");
+                        }
+
+                        myAgent.addBehaviour(new RequestForPlacing());
+                    } catch (FIPAException e) {
+                        e.printStackTrace();
                     }
 
-                    myAgent.addBehaviour(new RequestForPlacing());
+                    return;
+                } else {
+                    System.out.println(name + " ОПТИМАЛЕН");
+                    deregister();
+                    //myAgent.doDelete();
+                    //this.stop();
+                    return;
                 }
-                catch (FIPAException e)
-                {
-                    e.printStackTrace();
-                }
-
-                return;
-            }
-            else
-            {
-                System.out.println(name + " ОПТИМАЛЕН");
-                deregister();
-                //myAgent.doDelete();
-                //this.stop();
-                return;
             }
         }
 
@@ -225,30 +209,30 @@ public class TicketAgent extends Agent
         public void action() {
             switch (step) {
                 case 0:
-                    ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
-                    request.setConversationId("exchange");
+                    if(ticketAgents.length > 0) {
+                        ACLMessage request = new ACLMessage(ACLMessage.REQUEST);
+                        request.setConversationId("exchange");
 
-                    StringBuilder sb = new StringBuilder();
+                        StringBuilder sb = new StringBuilder();
 
-                    for (int i = 0; i < ticketAgents.length; ++i) {
-                        request.addReceiver(ticketAgents[i]);
+                        for (int i = 0; i < ticketAgents.length; ++i) {
+                            request.addReceiver(ticketAgents[i]);
+                        }
+
+                        try {
+                            request.setContentObject((Serializable) questions);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        request.setReplyWith("request" + System.currentTimeMillis());
+                        myAgent.send(request);
+
+                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
+                                MessageTemplate.MatchInReplyTo(request.getReplyWith()));
+
+                        step = 1;
                     }
-
-                    try {
-                        request.setContentObject((Serializable) questions);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                    request.setReplyWith("request" + System.currentTimeMillis());
-                    myAgent.send(request);
-                    System.out.println(myAgent.getName() + "ЗАБАБАХАЛ ЗАПРОС БИЧАМ");
-
-                    mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                            MessageTemplate.MatchInReplyTo(request.getReplyWith()));
-
-                    step = 1;
-
                     break;
                 case 1:
                     ACLMessage msg = myAgent.receive(mt);
@@ -273,31 +257,6 @@ public class TicketAgent extends Agent
                         mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
                                 MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
                         myAgent.send(reply);
-
-                       /* if (QuestionForReplace.getKey() != null) {
-                            questions.remove(QuestionForReplace.getValue());
-                            questions.add(QuestionForReplace.getKey());
-                        }*/
-
-                        /*int selectedWeight = Integer.valueOf(msg.getContent());
-
-                        for (Question question : questions) {
-                            if (selectedWeight == question.Complexity()) {
-                                deletedQuestion = question;
-                                break;
-                            }
-                        }
-
-                        sb = new StringBuilder();
-                        sb.append(deletedQuestion.Name()).append(";").append(deletedQuestion.Complexity()).append(";").append(deletedQuestion.Section());
-
-                        ACLMessage reply = msg.createReply();
-                        reply.setContent(new String(sb));
-                        reply.setPerformative(ACLMessage.INFORM);
-                        reply.setReplyWith("reply" + System.currentTimeMillis());
-                        mt = MessageTemplate.and(MessageTemplate.MatchConversationId("exchange"),
-                                MessageTemplate.MatchInReplyTo(reply.getReplyWith()));
-                        myAgent.send(reply);*/
                         step = 2;
                     } else {
                         block();
@@ -398,10 +357,6 @@ public class TicketAgent extends Agent
             ACLMessage msg = myAgent.receive(mt);
             if (msg != null)
             {
-                //String[] questionData = msg.getContent().split(";");
-                //String questionName = questionData[0];
-                //int questionComplexity = Integer.parseInt(questionData[1]);
-                //int section = Integer.parseInt(questionData[2]);
                 Question candidateQuestion = null;
                 try {
                     candidateQuestion = ((Pair<Question,Question>)msg.getContentObject()).getKey();
@@ -477,7 +432,6 @@ public class TicketAgent extends Agent
             }
             else
             {
-                deregister();
 
                 block();
             }
@@ -488,6 +442,7 @@ public class TicketAgent extends Agent
     private class PurchaseOrdersServer extends CyclicBehaviour
     {
 
+        boolean flag = true;
         public void action()
         {
             if (currentCount() < questionsCount){
@@ -534,7 +489,13 @@ public class TicketAgent extends Agent
             else
             {
                 block();
-                register(StartToExchangeType);
+                if(flag) {
+                    deregister();
+                    register(StartToExchangeType);
+
+                    addBehaviour(new RequestForExchanging(myAgent, 10000));
+                    flag = false;
+                }
             }
         }
 
