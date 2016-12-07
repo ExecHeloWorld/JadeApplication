@@ -2,10 +2,8 @@ package com.company;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Array;
 import java.util.*;
 
-import com.sun.javafx.scene.layout.region.Margins;
 import jade.core.AID;
 import jade.core.Agent;
 import jade.core.behaviours.Behaviour;
@@ -82,6 +80,14 @@ public class TicketAgent extends Agent
         addBehaviour(new OfferExchange());
 
         addBehaviour(new AcceptExchange());
+    }
+
+    private boolean contain(Question key, ArrayList<Question> questions) {
+        for (int i = 0; i < questions.size(); ++i){
+            if(key.Name().equals(questions.get(i).Name()))
+                return true;
+        }
+        return false;
     }
 
     private void deregister() {
@@ -245,13 +251,13 @@ public class TicketAgent extends Agent
                             } catch (UnreadableException e) {
                                 e.printStackTrace();
                             }
-
-                            System.out.println("*******************");
-                            System.out.println("Старый список вопросов в кортеже " + myAgent.getLocalName());
-                            System.out.println("------> " + ((Question)QuestionForReplace.getKey()).Name().toString());
-                            System.out.println("------> " + ((Question)QuestionForReplace.getValue()).Name());
-                            System.out.println("*******************");
-
+                            synchronized (System.out) {
+                                System.out.println("*******************");
+                                System.out.println("Старый список вопросов в кортеже " + myAgent.getLocalName());
+                                System.out.println("------> " + ((Question) QuestionForReplace.getKey()).Name().toString());
+                                System.out.println("------> " + ((Question) QuestionForReplace.getValue()).Name());
+                                System.out.println("*******************");
+                            }
                             ACLMessage reply = msg.createReply();
                             reply.setPerformative(ACLMessage.INFORM);
                             try {
@@ -273,8 +279,9 @@ public class TicketAgent extends Agent
                         ACLMessage answer = myAgent.receive(mt);
                         if (answer != null) {
                             System.out.println(answer.getPerformative() + "        <-------------------" + ACLMessage.CONFIRM + " n ");
-                            if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null && questions.remove(QuestionForReplace.getValue())) {
-
+                            int i =0;
+                            if (answer.getPerformative() == ACLMessage.CONFIRM && QuestionForReplace.getKey() != null && contain(QuestionForReplace.getValue(), questions)) {
+                                removeByName(QuestionForReplace.getValue(), questions);
                                 questions.add(QuestionForReplace.getKey());
                                 //questions.remove(deletedQuestion);
                                 //isOk = true;
@@ -301,6 +308,16 @@ public class TicketAgent extends Agent
 
     }
 
+    private void removeByName(Question value, ArrayList<Question> questions) {
+        for(int i=0; i < questions.size(); ++i){
+            if(questions.get(i).Name().equals(value.Name())){
+                questions.remove(i);
+                System.out.print("Удаление успено завершено!!!!!");
+                return;
+            }
+        }
+    }
+
     private class OfferExchange extends CyclicBehaviour
     {
         @Override
@@ -323,13 +340,23 @@ public class TicketAgent extends Agent
 
                 Question tmp = null, tmp2 = null;
 
-                if(!result.get(0).equals(listQuestions.get(0))) {
+                synchronized (System.out) {
+                    System.out.println("*******************");
+                    for (int i = 0; i < result.size(); i++){
+                        System.out.println("--->" + result.get(i).Name());
+                    }
+                    System.out.println("*******************");
+                }
+
+
+                if(!result.get(0).Name().equals(listQuestions.get(0).Name())) {
                     tmp = result.get(0);
-                    tmp2 = listQuestions.get(0);
-                }else
-                if(!result.get(1).equals(listQuestions.get(1))) {
+                    tmp2 = result.get(1);
+                }
+
+                if(!result.get(1).Name().equals(listQuestions.get(1).Name())) {
                     tmp = result.get(1);
-                    tmp2 = listQuestions.get(1);
+                    tmp2 = result.get(0);
                 }
 
                 try {
@@ -338,26 +365,6 @@ public class TicketAgent extends Agent
                     e.printStackTrace();
                 }
 
-                synchronized (System.out) {
-                    System.out.println("*******************");
-                    System.out.println("Старый список вопросов у " + myAgent.getLocalName());
-                    for (int i = 0; i < 2; i++) {
-                        System.out.println("------> " + questions.get(i).Name());
-                    }
-                    System.out.println("*******************");
-
-                    ArrayList<Question> newListQuestions = new ArrayList<>();
-                    newListQuestions.add(result.get(2));
-                    newListQuestions.add(result.get(3));
-
-                    questions = newListQuestions;
-                    System.out.println("*******************");
-                    System.out.println("Новый список вопросов у " + myAgent.getLocalName());
-                    for (int i = 0; i < 2; i++) {
-                        System.out.println("------> " + questions.get(i).Name());
-                    }
-                    System.out.println("*******************");
-                }
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 myAgent.send(reply);
 
@@ -392,7 +399,15 @@ public class TicketAgent extends Agent
                 ACLMessage reply = msg.createReply();
                 try
                 {
-                    if(questions.remove(((Pair<Question,Question>)msg.getContentObject()).getKey())) {
+                    System.out.println("*******************");
+                    System.out.println("Вопросы получателя");
+                    for (int i = 0; i < questions.size(); i++){
+                        System.out.println("--->" + questions.get(i).Name());
+                    }
+                    System.out.println("*******************");
+
+                    if(contain(((Pair<Question, Question>) msg.getContentObject()).getKey(), questions)) {
+                        removeByName(((Pair<Question, Question>) msg.getContentObject()).getKey(), questions);
                         questions.add(((Pair<Question, Question>) msg.getContentObject()).getValue());
                         //addQuestion(candidateQuestion);
                         //sumOfRazn();
@@ -421,6 +436,8 @@ public class TicketAgent extends Agent
             }
 
         }
+
+
 
     }
 
@@ -517,7 +534,7 @@ public class TicketAgent extends Agent
                     deregister();
                     register(StartToExchangeType);
 
-                    addBehaviour(new RequestForExchanging(myAgent, 10000));
+                    addBehaviour(new RequestForExchanging(myAgent, 5000));
                     flag = false;
                 }
             }
