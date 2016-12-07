@@ -58,6 +58,10 @@ public class TicketAgent extends Agent
     private static int checker = 0;
 
     private AID[] ticketAgents;
+    private static String ComplexityType ="MoreComplexity";
+    private static String StartToExchangeType = "StartToExchange";
+
+    Pair<Question, Question> QuestionForReplace = new Pair<>(null, null);
 
     protected void setup() {
         Object[] args = getArguments();
@@ -99,12 +103,6 @@ public class TicketAgent extends Agent
 
     private void deregister() {
         if (!isDeregister) {
-            DFAgentDescription template = new DFAgentDescription();
-            ServiceDescription sd = new ServiceDescription();
-            //sd.setType("deleting");
-            sd.setType("create");
-            sd.setName("JADE-create");
-            template.addServices(sd);
 
             try {
                 DFService.deregister(this);
@@ -116,13 +114,14 @@ public class TicketAgent extends Agent
         }
     }
 
-    private void register() {
+    private void register(String TypeName) {
         if (isDeregister) {
             DFAgentDescription template = new DFAgentDescription();
+            template.setName(getAID());
             ServiceDescription sd = new ServiceDescription();
             //sd.setType("deleting");
-            sd.setType("loading");
-            sd.setName("JADE-loading");
+            sd.setType(TypeName);
+            sd.setName(getLocalName());
             template.addServices(sd);
 
             try {
@@ -170,22 +169,21 @@ public class TicketAgent extends Agent
             if (Complexity() - (sumOfComplexity/counter) > delta)
             {
                 System.out.println(name + " - Превышена сложность ");
-                register();
+                register(ComplexityType);
                 return;
             }
 
             if (Complexity() - (sumOfComplexity / counter) < -delta)
             {
+                deregister();
                 System.out.println(name + " - Недостаточно сложный");
                 DFAgentDescription template = new DFAgentDescription();
                 template.setName(getAID());
                 ServiceDescription sd = new ServiceDescription();
 
-                sd.setType("loading");
+                sd.setType(ComplexityType);
                 sd.setName(getLocalName());
                 template.addServices(sd);
-
-                deregister();
 
                 try
                 {
@@ -212,7 +210,7 @@ public class TicketAgent extends Agent
                 System.out.println(name + " ОПТИМАЛЕН");
                 deregister();
                 //myAgent.doDelete();
-                this.stop();
+                //this.stop();
                 return;
             }
         }
@@ -223,7 +221,6 @@ public class TicketAgent extends Agent
     {
         private int step = 0;
         private MessageTemplate mt;
-        Pair<Question, Question> QuestionForReplace = new Pair<>(null, null);
         @Override
         public void action() {
             switch (step) {
@@ -380,26 +377,7 @@ public class TicketAgent extends Agent
 
                 reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
                 myAgent.send(reply);
-                /*int neededComplexity = sumOfComplexity/counter - Complexity();
 
-                String bestComplexity = null;
-                int bestDif = 99999;
-
-                ArrayList<String> bestComplexitis = new ArrayList<>();
-
-                for (String candidateQuestionComplexity : listOfComplexitis)
-                {
-                    if (Math.abs(neededComplexity - Integer.valueOf(candidateQuestionComplexity)) < bestDif)
-                    {
-                        bestComplexity = candidateQuestionComplexity;
-                        bestDif = Math.abs(neededComplexity - Integer.valueOf(candidateQuestionComplexity));
-                    }
-                }
-
-                ACLMessage reply = msg.createReply();
-                reply.setContent(bestComplexity);
-                reply.setPerformative(ACLMessage.ACCEPT_PROPOSAL);
-                myAgent.send(reply);*/
             }
             else
             {
@@ -499,6 +477,8 @@ public class TicketAgent extends Agent
             }
             else
             {
+                deregister();
+
                 block();
             }
         }
@@ -554,6 +534,7 @@ public class TicketAgent extends Agent
             else
             {
                 block();
+                register(StartToExchangeType);
             }
         }
 
@@ -660,14 +641,4 @@ public class TicketAgent extends Agent
         return count;
     }
 
-    private int checkOptimality()
-    {
-        int currentPercentOfLoad = (int) (100 * Complexity() / questionsCount);
-        if (currentPercentOfLoad > 80)
-            return 1;
-        else if (currentPercentOfLoad < 65)
-            return -1;
-
-        return 0;
-    }
 }
