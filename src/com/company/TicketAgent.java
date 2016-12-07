@@ -74,8 +74,8 @@ public class TicketAgent extends Agent
         DFAgentDescription dfd = new DFAgentDescription();
         dfd.setName(getAID());
         ServiceDescription sd = new ServiceDescription();
-        sd.setType("create");
-        sd.setName("JADE-create");
+        sd.setType("GetQuestions");
+        sd.setName(getLocalName());
         dfd.addServices(sd);
         try
         {
@@ -107,7 +107,7 @@ public class TicketAgent extends Agent
             template.addServices(sd);
 
             try {
-                DFService.deregister(this, template);
+                DFService.deregister(this);
                 isDeregister = true;
             }
             catch (FIPAException fe) {
@@ -178,9 +178,11 @@ public class TicketAgent extends Agent
             {
                 System.out.println(name + " - Недостаточно сложный");
                 DFAgentDescription template = new DFAgentDescription();
+                template.setName(getAID());
                 ServiceDescription sd = new ServiceDescription();
+
                 sd.setType("loading");
-                sd.setName("JADE-loading");
+                sd.setName(getLocalName());
                 template.addServices(sd);
 
                 deregister();
