@@ -38,9 +38,9 @@ public class QuestionAgent extends Agent
             @Override
             protected void onTick()
             {
-                if (Placed || stopDelay==0)
-                    this.stop();
-                --stopDelay;
+                //if (Placed || stopDelay==0)
+                    //this.stop();
+                //--stopDelay;
                 //System.out.println(name + " пытается найти билет");
 
                 DFAgentDescription template = new DFAgentDescription();

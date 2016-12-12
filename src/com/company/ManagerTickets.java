@@ -10,9 +10,7 @@ import java.io.InputStreamReader;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.AgentController;
 import java.util.Scanner;
-/**
- * Created by localadmin on 26.11.2016.
- */
+
 public class ManagerTickets extends Agent {
     protected void setup() {
         Runtime rt = Runtime.instance();

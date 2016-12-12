@@ -33,7 +33,7 @@ public class TicketAgent extends Agent
 
     private int delta = 3;
     private int eps = 20;
-    private int delay=5;
+    private int delay=6;
 
     private static boolean isFileOpen = false;
     private static int countOfWrittenTickets = 0;
@@ -213,7 +213,7 @@ public class TicketAgent extends Agent
         private MessageTemplate mt;
         @Override
         public void action() {
-            synchronized (QuestionForReplace) {
+            synchronized (myAgent) {
                 switch (step) {
                     case 0:
                         if (ticketAgents.length > 0) {
@@ -390,7 +390,7 @@ public class TicketAgent extends Agent
             {
                 Question candidateQuestion = null;
                 try {
-                    candidateQuestion = ((Pair<Question,Question>)msg.getContentObject()).getKey();
+                    candidateQuestion = ((Pair<Question,Question>)msg.getContentObject()).getValue();
                 } catch (UnreadableException e) {
                     System.out.println("ОТвалилсь на фазе чего-то кароче иди на хуй");
                     e.printStackTrace();

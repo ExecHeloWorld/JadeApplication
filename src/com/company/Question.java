@@ -37,42 +37,28 @@ public class Question implements  Serializable
     }
 
     static ArrayList<ArrayList<Question>> Permutation(ArrayList<Question> questionsFromMin, ArrayList<Question> questionsFromMax){
-        ArrayList<ArrayList<Question>> result = new ArrayList<>();
+        ArrayList<ArrayList<Question>> result = null;
         ArrayList<Question> kostil = null;
         if(questionsFromMin.get(0).section != questionsFromMax.get(0).section && questionsFromMin.get(1).section != questionsFromMax.get(1).section) {
+            result = new ArrayList<>();
             kostil = new ArrayList<>();
             kostil.add(questionsFromMin.get(0));
             kostil.add(questionsFromMax.get(0));
             kostil.add(questionsFromMin.get(1));
             kostil.add(questionsFromMax.get(1));
             result.add(kostil);
+
         }
         if(questionsFromMin.get(0).section != questionsFromMax.get(1).section && questionsFromMin.get(1).section != questionsFromMax.get(0).section) {
             kostil = new ArrayList<>();
+            result = new ArrayList<>();
+
             kostil.add(questionsFromMin.get(0));
             kostil.add(questionsFromMax.get(1));
             kostil.add(questionsFromMin.get(1));
             kostil.add(questionsFromMax.get(0));
             result.add(kostil);
         }
-        /*
-        if(questionsFromMin.get(1).section != questionsFromMax.get(0).section && questionsFromMin.get(0).section != questionsFromMax.get(1).section) {
-            kostil = new ArrayList<>();
-            kostil.add(questionsFromMin.get(1));
-            kostil.add(questionsFromMax.get(0));
-            kostil.add(questionsFromMin.get(0));
-            kostil.add(questionsFromMax.get(1));
-            result.add(kostil);
-        }
-        if(questionsFromMin.get(1).section != questionsFromMax.get(1).section && questionsFromMin.get(0).section != questionsFromMax.get(0).section) {
-            kostil = new ArrayList<>();
-            kostil.add(questionsFromMin.get(1));
-            kostil.add(questionsFromMax.get(1));
-            kostil.add(questionsFromMin.get(0));
-            kostil.add(questionsFromMax.get(0));
-            result.add(kostil);
-        }
-        */
         return result;
     }
 
